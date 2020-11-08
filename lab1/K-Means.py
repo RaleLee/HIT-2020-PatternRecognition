@@ -20,7 +20,7 @@ def run_MNIST(k: int, file_nums: str):
     model = KMeans(k)
     x, y = get_MNIST_dataset()
     model.fit(x)
-    result_file = 'result' + file_nums + '.csv'
+    result_file = 'result/result' + file_nums + '.csv'
     with open(result_file, 'w', encoding='utf8') as f:
         for center in model.init_centers:
             f.write(str(center) + '\n')
