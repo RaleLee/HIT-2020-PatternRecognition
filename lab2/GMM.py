@@ -125,8 +125,8 @@ def predict(gmm_list, data, num, labels, alpha):
 
     pred = np.argmax(log, axis=0)
     correct_num = (pred == labels).sum()
-    acc = correct_num / num
-    print("[%d / %d] = %.2f%%" % (correct_num, num, acc * 100))
+    accuracy = correct_num / num
+    print("{:d}, {:.2f}".format(correct_num, accuracy * 100))
     return correct_num, acc
 
 
@@ -137,4 +137,4 @@ if __name__ == '__main__':
         cor, acc = run_MNIST(kkk)
         result.append((cor, acc))
     for re in result:
-        print("[%d / 10000] = %.2f%%" % (re[0], re[1] * 100))
+        print(str(re[0]) + " " + str(re[1]))

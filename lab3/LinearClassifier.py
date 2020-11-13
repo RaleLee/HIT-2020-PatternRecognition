@@ -49,9 +49,6 @@ class Perceptron:
             if self.judge(data):
                 break
 
-    def predict(self, data, label):
-        pass
-
 
 class LMSE:
     def __init__(self):
@@ -61,9 +58,6 @@ class LMSE:
         data = preprocess_dataset(data, label)
         num, dim = data.shape
         self.w = np.linalg.inv(data.T.dot(data)).dot(data.T).dot(np.ones((num, 1))).reshape((dim, ))
-
-    def predict(self, data, label):
-        pass
 
 
 class KeslersPerceptron:
@@ -135,5 +129,5 @@ def run_MNIST():
 
 
 if __name__ == '__main__':
-    # run_tony_model()
+    run_tony_model()
     run_MNIST()
