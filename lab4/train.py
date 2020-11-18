@@ -57,4 +57,4 @@ if __name__ == '__main__':
     process.train()
 
     print("Training Over")
-    Processor.test(os.path.join(args.save_dir, 'model.pkl'), dataset, args)
+    Processor.test(os.path.join(args.save_dir, 'model.pkl'), dataset, args, True)

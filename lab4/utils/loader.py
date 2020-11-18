@@ -40,6 +40,8 @@ class DatasetManager(object):
         self.__label_data['train'] = train_label
         self.__vector_data['test'] = test_data
         self.__label_data['test'] = test_label
+        self.__vector_data['exam'] = all_vector
+        self.__label_data['exam'] = all_label
 
     def build_exam_dataset(self):
         vector_path = os.path.join(self.__args.data_dir, 'TestSamples.csv')

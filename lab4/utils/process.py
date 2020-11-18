@@ -5,7 +5,6 @@ from torch.autograd import Variable
 
 import os
 import time
-import random
 import numpy as np
 from tqdm import tqdm
 
@@ -69,7 +68,7 @@ class Processor(object):
 
                 torch.save(self.__model, os.path.join(self.__args.save_dir, 'model.pkl'))
                 time_con = time.time() - time_start
-
+                best_train_acc = cur_acc
                 print('[Epoch {:2d}]: Test and save model cost {:2.6}s.'.format(epoch, time_con))
 
     def estimate(self, is_train=True, batch_size=100):
@@ -95,13 +94,13 @@ class Processor(object):
             dataloader = dataset.batch_delivery('train', batch_size=batch_size, shuffle=False)
         elif mode == 'test':
             dataloader = dataset.batch_delivery('test', batch_size=batch_size, shuffle=False)
-        elif mode == 'exam':
+        elif mode == 'exam' or mode == 'train_final':
             dataloader = dataset.batch_delivery('exam', batch_size=batch_size, shuffle=False)
         else:
             assert False, "Not Implement"
 
         pred_label, real_label = [], []
-        if mode == 'train' or mode == 'test':
+        if mode == 'train' or mode == 'test' or mode == 'train_final':
             with torch.no_grad():
                 for vector_batch, label_batch in tqdm(dataloader, ncols=50):
                     tmp_real = []
@@ -132,13 +131,18 @@ class Processor(object):
             assert False, "Not Implement"
 
     @staticmethod
-    def test(model_path, dataset, args):
+    def test(model_path, dataset, args, is_train=False):
         model = torch.load(model_path, map_location='cuda:0' if torch.cuda.is_available() else 'cpu')
-        pred_label = Processor.prediction(model, dataset, 'exam', args.batch_size)
-        pred_label = list(expand_list(pred_label))
-        with open(os.path.join(args.save_dir, 'Result.csv'), 'w') as wf:
-            for label in pred_label:
-                wf.write(str(label) + '\n')
+        if is_train:
+            pred_label, real_label = Processor.prediction(model, dataset, 'train_final', args.batch_size)
+            label_acc = accuracy(pred_label, real_label)
+            print(label_acc)
+        else:
+            pred_label = Processor.prediction(model, dataset, 'exam', args.batch_size)
+            pred_label = list(expand_list(pred_label))
+            with open(os.path.join(args.save_dir, 'Result.csv'), 'w') as wf:
+                for label in pred_label:
+                    wf.write(str(label) + '\n')
         print('Finish Test!')
         return
 
