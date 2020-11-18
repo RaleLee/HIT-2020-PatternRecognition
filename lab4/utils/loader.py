@@ -14,7 +14,7 @@ class TorchDataset(Dataset):
     def __getitem__(self, index):
         return self.__vector[index], self.__label[index]
 
-    def __len(self):
+    def __len__(self):
         assert len(self.__vector) == len(self.__label)
         return len(self.__vector)
 
@@ -30,13 +30,23 @@ class DatasetManager(object):
         vector_path = os.path.join(self.__args.data_dir, 'TrainSamples.csv')
         label_path = os.path.join(self.__args.data_dir, 'TrainLabels.csv')
         all_vector = np.genfromtxt(vector_path, delimiter=',')
-        all_label = np.genfromtxt(label_path, delimiter=',', dtype=np.int8)
-        train_data, train_label, test_data, test_label = train_test_split(all_vector, all_label, test_size=0.2,
+        all_label = np.genfromtxt(label_path, delimiter='\n', dtype=np.int8)
+        all_label = all_label.reshape((len(all_label), 1))
+
+        train_data, test_data, train_label, test_label = train_test_split(all_vector, all_label, test_size=0.2,
                                                                           random_state=self.__args.random_state)
+
         self.__vector_data['train'] = train_data
         self.__label_data['train'] = train_label
         self.__vector_data['test'] = test_data
         self.__label_data['test'] = test_label
+
+    def build_exam_dataset(self):
+        vector_path = os.path.join(self.__args.data_dir, 'TestSamples.csv')
+        all_vector = np.genfromtxt(vector_path, delimiter=',')
+        fake_label = np.zeros((all_vector.shape[0], 1))
+        self.__vector_data['exam'] = all_vector
+        self.__label_data['exam'] = fake_label
 
     def batch_delivery(self, data_name, batch_size=None, shuffle=True):
         if batch_size is None:
@@ -44,7 +54,6 @@ class DatasetManager(object):
 
         vector = self.__vector_data[data_name]
         label = self.__label_data[data_name]
-
         dataset = TorchDataset(vector, label)
 
         return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=self.__collate_fn)

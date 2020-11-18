@@ -33,15 +33,16 @@ class Processor(object):
     def train(self):
         best_train_acc = 0.0
         dataloader = self.__dataset.batch_delivery('train')
-        for epoch in range(self.__args.epoch):
+        for epoch in range(0, self.__args.epoch):
+
             total_loss = 0.0
             time_start = time.time()
             self.__model.train()
 
             for vector_batch, label_batch in tqdm(dataloader, ncols=50):
                 vector_var = Variable(torch.FloatTensor(vector_batch))
-                label_var = Variable(torch.LongTensor(label_batch))
-
+                label_var = torch.LongTensor(label_batch).squeeze()
+                label_var = Variable(label_var)
                 if torch.cuda.is_available():
                     vector_var = vector_var.cuda()
                     label_var = label_var.cuda()
@@ -57,14 +58,14 @@ class Processor(object):
                 except AttributeError:
                     total_loss += batch_loss.cpu().data.numpy()[0]
 
-                time_con = time.time() - time_start
-                print('[Epoch {:2d}]: The total loss is {:2.6f}, cost {:2.6}s.'.format(epoch, batch_loss, time_con))
+            time_con = time.time() - time_start
+            print('[Epoch {:2d}]: The total loss is {:2.6f}, cost {:2.6}s.'.format(epoch, batch_loss, time_con))
 
-                change, time_start = False, time.time()
-                cur_acc = self.estimate(is_train=True, batch_size=self.__batch_size)
-                if cur_acc > best_train_acc:
-                    test_acc = self.estimate(is_train=False, batch_size=self.__batch_size)
-                    print('Test result: epoch: {}, label acc is {:.6f}.'.format(epoch, test_acc))
+            change, time_start = False, time.time()
+            cur_acc = self.estimate(is_train=True, batch_size=self.__batch_size)
+            if cur_acc > best_train_acc:
+                test_acc = self.estimate(is_train=False, batch_size=self.__batch_size)
+                print('Test result: epoch: {}, label acc is {:.6f}.'.format(epoch, test_acc))
 
                 torch.save(self.__model, os.path.join(self.__args.save_dir, 'model.pkl'))
                 time_con = time.time() - time_start
@@ -82,6 +83,9 @@ class Processor(object):
             )
 
         label_acc = accuracy(pred_label, real_label)
+        # with open(os.path.join(self.__args.save_dir, 'label_res.txt'), 'w') as f:
+        #     f.write(str(pred_label) + '\n')
+        #     f.write(str(real_label))
         return label_acc
 
     @staticmethod
@@ -91,22 +95,52 @@ class Processor(object):
             dataloader = dataset.batch_delivery('train', batch_size=batch_size, shuffle=False)
         elif mode == 'test':
             dataloader = dataset.batch_delivery('test', batch_size=batch_size, shuffle=False)
+        elif mode == 'exam':
+            dataloader = dataset.batch_delivery('exam', batch_size=batch_size, shuffle=False)
         else:
-            dataloader = dataset.batch_delivery('test', batch_size=batch_size, shuffle=False)
+            assert False, "Not Implement"
 
         pred_label, real_label = [], []
+        if mode == 'train' or mode == 'test':
+            with torch.no_grad():
+                for vector_batch, label_batch in tqdm(dataloader, ncols=50):
+                    tmp_real = []
+                    for label in label_batch:
+                        tmp_real.append(label.tolist())
 
-        with torch.no_grad():
-            for vector_batch, label_batch in tqdm(dataloader, ncols=50):
-                real_label.append(label_batch)
-                var_vector = Variable(torch.FloatTensor(vector_batch))
-                if torch.cuda.is_available():
-                    var_vector = var_vector.cuda()
+                    real_label.append(tmp_real)
+                    var_vector = Variable(torch.FloatTensor(vector_batch))
+                    if torch.cuda.is_available():
+                        var_vector = var_vector.cuda()
 
-                label_idx = model(var_vector, n_predicts=1)
-                pred_label.append(label_idx)
+                    label_idx = model(var_vector, n_predicts=1)
+                    pred_label.append(label_idx)
 
-        return pred_label, real_label
+            return pred_label, real_label
+        elif mode == 'exam':
+            with torch.no_grad():
+                for vector_batch, _ in tqdm(dataloader, ncols=50):
+                    var_vector = Variable(torch.FloatTensor(vector_batch))
+                    if torch.cuda.is_available():
+                        var_vector = var_vector.cuda()
+
+                    label_idx = model(var_vector, n_predicts=1)
+                    pred_label.append(label_idx)
+
+            return pred_label
+        else:
+            assert False, "Not Implement"
+
+    @staticmethod
+    def test(model_path, dataset, args):
+        model = torch.load(model_path, map_location='cuda:0' if torch.cuda.is_available() else 'cpu')
+        pred_label = Processor.prediction(model, dataset, 'exam', args.batch_size)
+        pred_label = list(expand_list(pred_label))
+        with open(os.path.join(args.save_dir, 'Result.csv'), 'w') as wf:
+            for label in pred_label:
+                wf.write(str(label) + '\n')
+        print('Finish Test!')
+        return
 
 
 def expand_list(nested_list):
@@ -119,7 +153,7 @@ def expand_list(nested_list):
 
 
 def accuracy(pred, real):
-    pred_array = np.array(list(expand_list(pred))).astype(np.uint8)
-    real_array = np.array(list(expand_list(real))).astype(np.uint8)
+    pred_array = np.array(list(expand_list(pred)))
+    real_array = np.array(list(expand_list(real)))
     assert len(pred_array) == len(real_array)
     return (pred_array == real_array).sum() * 1.0 / len(pred_array)
